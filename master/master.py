@@ -98,34 +98,22 @@ async def submit_job(
 
     # Ask workers for status
     statuses = await get_workers_statuses()
-    # Build list of workers with available slots (capacity simulation)
     worker_slots = {}
     for s in statuses:
         if s["ok"] and s["status"]:
-            avail = s["status"].get("available_slots", 0)
-            # ensure at least 0
-            avail = max(0, int(avail))
-            if avail > 0:
-                worker_slots[s["worker"]] = avail
-            else:
-                # worker known but no slots; still include with 0
-                worker_slots[s["worker"]] = 0
+            avail = max(0, int(s["status"].get("available_slots", 0)))
+            worker_slots[s["worker"]] = avail
         else:
-            # worker unreachable -> set available 0
             worker_slots[s["worker"]] = 0
 
-    # if no worker returned >0 slots, fallback to equal-split across all workers with best-effort assignment
     total_slots = sum(worker_slots.values())
     if total_slots == 0:
-        # fallback: assume each worker has at least 1 slot
         worker_slots = {w: 1 for w in WORKERS}
 
-    # decide number of splits
     parts = n_splits if n_splits and n_splits > 0 else sum(worker_slots.values())
     parts = max(1, parts)
 
     # decide text vs binary
-    is_text = False
     try:
         decoded = content.decode("utf-8")
         is_text = True
@@ -137,24 +125,15 @@ async def submit_job(
     else:
         splits = split_bytes_equally(content, parts)
 
-    # prepare assignment queue: create list of (part_index, split_bytes)
     queue = [{"part_index": i, "data": splits[i]} for i in range(len(splits))]
-
-    # result placeholders
     mapped_results = [None] * len(queue)
-
-    # Keep per-part retry counters
     retries = {i: 0 for i in range(len(queue))}
 
     async with aiohttp.ClientSession() as session:
-        # While there are unprocessed splits, try to schedule them
         pending = set(range(len(queue)))
-        # Convert worker_slots to dynamic available slots mapping
         dynamic_slots = worker_slots.copy()
 
         while pending:
-            scheduled_any = False
-            # refresh statuses periodically to get updated available_slots
             statuses = await get_workers_statuses()
             for s in statuses:
                 if s["ok"] and s["status"]:
@@ -162,86 +141,78 @@ async def submit_job(
                 else:
                     dynamic_slots[s["worker"]] = 0
 
-            # Build list of workers with >0 slots
-            available_workers = [w for w,slots in dynamic_slots.items() if slots > 0]
+            available_workers = [w for w, slots in dynamic_slots.items() if slots > 0]
             if not available_workers:
-                # if none available, wait a bit and retry
                 await asyncio.sleep(0.5)
                 continue
 
-            # iterate over a snapshot of pending parts and try to assign
             for part_idx in list(pending):
-                # pick a worker with available slots (simple round-robin over available_workers)
                 chosen = None
                 for w in available_workers:
-                    if dynamic_slots.get(w,0) > 0:
+                    if dynamic_slots.get(w, 0) > 0:
                         chosen = w
                         break
                 if not chosen:
-                    break  # no more available slots right now
+                    break
 
-                # try send
-                resp = await send_split_to_worker(session, chosen, queue[part_idx]["data"], map_bytes, part_idx, attempt=retries[part_idx]+1)
+                resp = await send_split_to_worker(
+                    session, chosen, queue[part_idx]["data"], map_bytes, part_idx, attempt=retries[part_idx]+1
+                )
                 if resp.get("ok"):
-                    mapped_results[part_idx] = resp["bytes"]
+                    mapped_results[part_idx] = resp
                     pending.remove(part_idx)
-                    dynamic_slots[chosen] = dynamic_slots.get(chosen,1) - 1
-                    scheduled_any = True
+                    dynamic_slots[chosen] = dynamic_slots.get(chosen, 1) - 1
                 else:
-                    # worker busy or error: increase retry or reassign
                     retries[part_idx] += 1
-                    err = resp.get("error", "")
-                    # If exceeded max retries, try other workers or eventually fail
                     if retries[part_idx] >= MAX_RETRIES:
-                        # attempt to try other workers immediately (but we've already tried a chosen one)
-                        # If all workers tried and exceeded retries -> raise
-                        # For now, requeue and wait small backoff
-                        await asyncio.sleep(0.2 * retries[part_idx])
-                    else:
-                        # short backoff before retrying this part
-                        await asyncio.sleep(0.1 * retries[part_idx])
+                        raise RuntimeError(f"Part {part_idx} failed after {MAX_RETRIES} retries: {resp.get('error')}")
+                    await asyncio.sleep(0.2 * retries[part_idx])
+            await asyncio.sleep(0.1)
 
-                # small yield to allow status refresh
-                await asyncio.sleep(0)
-
-            if not scheduled_any:
-                # avoid busy loop
-                await asyncio.sleep(0.2)
-
-    # After all parts processed, write intermediate files in order
+    # guardar resultados y armar inter_files con worker
     inter_files = []
-    for i, b in enumerate(mapped_results):
-        if b is None:
-            raise RuntimeError(f"Part {i} failed after retries")
+    for resp in mapped_results:
+        i = resp["part_index"]
+        worker = resp["worker"]
+        b = resp["bytes"]
+
         path = os.path.join(DATA_DIR, f"mapped_part_{i}.bin")
         with open(path, "wb") as f:
             f.write(b)
-        inter_files.append(path)
 
-    # Concatenate in order
+        inter_files.append({"path": path, "worker": worker})
+
     concatenated_path = os.path.join(DATA_DIR, "mapped_concatenated.bin")
     with open(concatenated_path, "wb") as out:
-        for p in inter_files:
-            with open(p, "rb") as ip:
+        for f in inter_files:
+            with open(f["path"], "rb") as ip:
                 out.write(ip.read())
 
     final_output_path = os.path.join(DATA_DIR, "final_output.bin")
 
     if reduce_bytes:
-        # run reducer locally
         with tempfile.NamedTemporaryFile(delete=False, suffix=".py") as tmp:
             tmp.write(reduce_bytes)
             tmp.flush()
             tmp_path = tmp.name
 
         with open(concatenated_path, "rb") as stdin_f, open(final_output_path, "wb") as stdout_f:
-            proc = subprocess.run(["python", tmp_path], stdin=stdin_f, stdout=stdout_f, stderr=subprocess.PIPE)
+            proc = subprocess.run(
+                ["python", tmp_path],
+                stdin=stdin_f,
+                stdout=stdout_f,
+                stderr=subprocess.PIPE
+            )
             if proc.returncode != 0:
                 raise RuntimeError(f"Reduce script failed: {proc.stderr.decode('utf-8', errors='ignore')}")
     else:
         os.replace(concatenated_path, final_output_path)
 
-    return {"message": "job completed", "output_path": final_output_path, "mapped_parts": inter_files}
+    return {
+        "message": "job completed",
+        "output_path": final_output_path,
+        "mapped_parts": inter_files
+    }
 
 @app.get("/download_output")
 def download_output():
