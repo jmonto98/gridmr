@@ -1,0 +1,39 @@
+version: "3.8"
+services:
+  master:
+    build:
+      context: ./master
+    container_name: gridmr_master
+    volumes:
+      - ./data:/data
+    ports:
+      - "8000:8000"
+    environment:
+      - WORKERS=http://worker1:8001/process_split,http://worker2:8001/process_split,http://worker3:8001/process_split
+
+  worker1:
+    build:
+      context: ./worker
+    container_name: gridmr_worker1
+    volumes:
+      - ./data:/data
+    ports:
+      - "8101:8001"
+
+  worker2:
+    build:
+      context: ./worker
+    container_name: gridmr_worker2
+    volumes:
+      - ./data:/data
+    ports:
+      - "8102:8001"
+
+  worker3:
+    build:
+      context: ./worker
+    container_name: gridmr_worker3
+    volumes:
+      - ./data:/data
+    ports:
+      - "8103:8001"
