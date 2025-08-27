@@ -9,7 +9,12 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - WORKERS=http://worker1:8001/process_split,http://worker2:8001/process_split,http://worker3:8001/process_split
+      # Lista interna de workers en la red compose (servicio:port/endpoint)
+      - WORKERS=http://worker1:8001,http://worker2:8001,http://worker3:8001
+      - WORKER_STATUS_PATH=/status
+      - WORKER_PROCESS_PATH=/process_split
+      - MAX_RETRIES=3
+      - WORKER_REQUEST_TIMEOUT=20
 
   worker1:
     build:
@@ -19,6 +24,8 @@ services:
       - ./data:/data
     ports:
       - "8101:8001"
+    environment:
+      - CAPACITY=3
 
   worker2:
     build:
@@ -28,6 +35,8 @@ services:
       - ./data:/data
     ports:
       - "8102:8001"
+    environment:
+      - CAPACITY=1
 
   worker3:
     build:
@@ -37,3 +46,5 @@ services:
       - ./data:/data
     ports:
       - "8103:8001"
+    environment:
+      - CAPACITY=2
