@@ -1,0 +1,58 @@
+version: "3.9"
+
+services:
+  master:
+    build: ./master
+    container_name: master
+    ports:
+      - "8000:8000"
+    environment:
+      - WORKERS=http://worker1:8001,http://worker2:8002,http://worker3:8003,http://worker4:8004
+
+  worker1:
+    build: ./worker
+    container_name: worker1
+    ports:
+      - "8001:8001"
+    environment:
+      - WORKER_ID=1
+      - WORKER_CAPACITY=3
+      - WORKER_PORT=8001
+    volumes:
+      - ./worker/data/chunk1.txt:/data/chunk.txt
+
+  worker2:
+    build: ./worker
+    container_name: worker2
+    ports:
+      - "8002:8002"
+    environment:
+      - WORKER_ID=2
+      - WORKER_CAPACITY=2
+      - WORKER_PORT=8002
+    volumes:
+      - ./worker/data/chunk2.txt:/data/chunk.txt
+
+  worker3:
+    build: ./worker
+    container_name: worker3
+    ports:
+      - "8003:8003"
+    environment:
+      - WORKER_ID=3
+      - WORKER_CAPACITY=5
+      - WORKER_PORT=8003
+    volumes:
+      - ./worker/data/chunk3.txt:/data/chunk.txt
+
+  worker4:
+    build: ./worker
+    container_name: worker4
+    ports:
+      - "8004:8004"
+    environment:
+      - WORKER_ID=4
+      - WORKER_CAPACITY=1
+      - WORKER_PORT=8004
+    volumes:
+      - ./worker/data/chunk4.txt:/data/chunk.txt
