@@ -10,8 +10,24 @@ WORKERS = os.getenv("WORKERS", "").split(",")
 
 @app.get("/workers")
 async def get_workers():
-    """Devuelve lista de workers configurados"""
-    return {"workers": WORKERS}
+    """Devuelve lista de workers y su capacidad"""
+    worker_info = []
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        for worker in WORKERS:
+            try:
+                resp = await client.get(f"{worker}/info")
+                data = resp.json()
+                worker_info.append({
+                    "url": worker,
+                    "id": data.get("id"),
+                    "capacity": data.get("capacity")
+                })
+            except Exception as e:
+                worker_info.append({
+                    "url": worker,
+                    "error": str(e)
+                })
+    return {"workers": worker_info}
 
 @app.get("/reconstruct")
 async def reconstruct_file():

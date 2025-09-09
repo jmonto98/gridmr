@@ -16,7 +16,7 @@ services:
       - "8001:8001"
     environment:
       - WORKER_ID=1
-      - WORKER_CAPACITY=3
+      - WORKER_CAPACITY=${WORKER1_CAPACITY}
       - WORKER_PORT=8001
     volumes:
       - ./worker/data/chunk1.txt:/data/chunk.txt
@@ -28,7 +28,7 @@ services:
       - "8002:8002"
     environment:
       - WORKER_ID=2
-      - WORKER_CAPACITY=2
+      - WORKER_CAPACITY=${WORKER2_CAPACITY}
       - WORKER_PORT=8002
     volumes:
       - ./worker/data/chunk2.txt:/data/chunk.txt
@@ -40,7 +40,7 @@ services:
       - "8003:8003"
     environment:
       - WORKER_ID=3
-      - WORKER_CAPACITY=5
+      - WORKER_CAPACITY=${WORKER3_CAPACITY}
       - WORKER_PORT=8003
     volumes:
       - ./worker/data/chunk3.txt:/data/chunk.txt
@@ -52,7 +52,7 @@ services:
       - "8004:8004"
     environment:
       - WORKER_ID=4
-      - WORKER_CAPACITY=1
+      - WORKER_CAPACITY=${WORKER4_CAPACITY}
       - WORKER_PORT=8004
     volumes:
       - ./worker/data/chunk4.txt:/data/chunk.txt
