@@ -1,0 +1,60 @@
+{
+  "file_key": "Quijote",
+  "chunks": [
+    {
+      "chunk_id": "F00000001",
+      "file_key": "Quijote",
+      "primary_worker": "http://w1:8001"
+    },
+    {
+      "chunk_id": "F00000002",
+      "file_key": "Quijote",
+      "primary_worker": "http://w1:8001"
+    },
+    {
+      "chunk_id": "F00000003",
+      "file_key": "Quijote",
+      "primary_worker": "http://w1:8001"
+    },
+    {
+      "chunk_id": "F00000004",
+      "file_key": "Quijote",
+      "primary_worker": "http://w2:8002"
+    },
+    {
+      "chunk_id": "F00000005",
+      "file_key": "Quijote",
+      "primary_worker": "http://w2:8002"
+    },
+    {
+      "chunk_id": "F00000006",
+      "file_key": "Quijote",
+      "primary_worker": "http://w3:8003"
+    },
+    {
+      "chunk_id": "F00000007",
+      "file_key": "Quijote",
+      "primary_worker": "http://w3:8003"
+    },
+    {
+      "chunk_id": "F00000008",
+      "file_key": "Quijote",
+      "primary_worker": "http://w3:8003"
+    },
+    {
+      "chunk_id": "F00000009",
+      "file_key": "Quijote",
+      "primary_worker": "http://w3:8003"
+    },
+    {
+      "chunk_id": "F00000010",
+      "file_key": "Quijote",
+      "primary_worker": "http://w3:8003"
+    },
+    {
+      "chunk_id": "F00000011",
+      "file_key": "Quijote",
+      "primary_worker": "http://w4:8004"
+    }
+  ]
+}
