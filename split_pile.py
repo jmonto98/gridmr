@@ -14,11 +14,11 @@ BOOKS_DIR = pathlib.Path("books")
 
 # 2️⃣ Carpeta de salida donde está tu estructura de proyecto
 MASTER_MANIFESTS = pathlib.Path("master/gridfs/manifests")
-WORKERS_BASE = pathlib.Path("workers")   # donde tienes subcarpetas w1, w2, ...
+WORKERS_BASE = pathlib.Path("chunks")   # donde tienes subcarpetas w1, w2, ...
 
 # 3️⃣ Capacidades de los workers
 #    Usa .env o escribe aquí los valores
-WORKER_IDS = ["w1", "w2", "w3", "w4"]
+WORKER_IDS = ["worker1", "worker2", "worker3", "worker4"]
 CAPACITIES = [
     int(os.getenv("WORKER1_CAPACITY", 3)),
     int(os.getenv("WORKER2_CAPACITY", 3)),
@@ -61,7 +61,7 @@ def prepare_book(book_path: pathlib.Path):
                 break
             chunk_id = f"F{str(current).zfill(8)}"
             # carpeta destino: workers/wX/data/<file_key>/
-            dest_dir = WORKERS_BASE / wid / "data" / file_key
+            dest_dir = WORKERS_BASE / wid / file_key
             dest_dir.mkdir(parents=True, exist_ok=True)
             (dest_dir / f"chunk_{chunk_id}.txt").write_text(
                 chunks[current-1],
